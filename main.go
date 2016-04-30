@@ -11,7 +11,7 @@ import (
 	"log"
 	"net/url"
 	"crypto/md5"
-	"pushSever-Go/httplib"
+	"github.com/BPing/pushSever-Go/httplib"
 	"strings"
 	"syscall"
 	"runtime"
