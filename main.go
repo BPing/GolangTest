@@ -59,8 +59,8 @@ var (
 
 	callbackServer = ""   //接收回调信息的uri
 
-	key = "4fbfc9b4d58838f1757b68c8eff5b5564ba2c7fb"
-	authUser = "4G"
+	key = ""
+	authUser = ""
 )
 
 func init() {
