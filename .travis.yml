@@ -6,7 +6,7 @@ go:
 install:
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/mattn/goveralls
-  - go get github.com/BPing/Golib/httpli
+  - go get github.com/BPing/Golib/httplib
 
 script:
   - go test -v -covermode=count -coverprofile=coverage.out
