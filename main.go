@@ -1,28 +1,27 @@
 package main
 
 import (
-	"net/http"
-	"fmt"
-	"os/exec"
 	"bytes"
-	"encoding/json"
-	"regexp"
-	"os"
-	"log"
-	"net/url"
 	"crypto/md5"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"net/url"
+	"os"
+	"os/exec"
 	"github.com/BPing/Golib/httplib"
+	"regexp"
+	"runtime"
 	"strings"
 	"syscall"
-	"runtime"
 )
 
 const (
-	FFMPEG = "/opt/local/ffmpeg/ffmpeg"///opt/local/ffmpeg/ffmpeg
+	FFMPEG = "/opt/local/ffmpeg/ffmpeg" ///opt/local/ffmpeg/ffmpeg
 	PARARMERR = -1
 	LOGFILE = "ffmpeg-log.log"
 )
-
 
 //推流命令控制器
 type pushCmd struct {
@@ -37,10 +36,10 @@ func (this *pushCmd) ErrorString() (str string) {
 }
 
 //
-func (this *pushCmd)Kill() {
-	if (runtime.GOOS == "linux") {
+func (this *pushCmd) Kill() {
+	if runtime.GOOS == "linux" {
 		pgid, err := syscall.Getpgid(this.CmdExec.Process.Pid)
-		if (nil == err) {
+		if nil == err {
 			syscall.Kill(-pgid, syscall.SIGTERM)
 		}
 		logPrintln(err)
@@ -49,18 +48,23 @@ func (this *pushCmd)Kill() {
 
 var (
 	loop bool = false //循环标志
-	bitrate string = "1m" //输出码率设置
+	bitrate string = "1m"  //输出码率设置
 	bitReg = regexp.MustCompile(`^(\d){1,6}(k|K|M|m)$`)
 	pushReg = regexp.MustCompile(`^rtmp://`)
+	avOptions = regexp.MustCompile(`Stream .*\n`)
 
 	pushMap = make(map[string]*pushCmd)
 
 	logger *log.Logger
 
-	callbackServer = ""   //接收回调信息的uri
+	callbackServer = "" //接收回调信息的uri
 
-	key = ""
-	authUser = ""
+	key = "4fbfc9b4d58838f1757b68c8eff5b5564ba2c7fb"
+	authUser = "4G"
+
+	cmdStrf = FFMPEG + " -re -i %s  -c:v copy  %s -f flv  %s"
+
+	cmdInfoStrf = FFMPEG + "  -i %s "
 )
 
 func init() {
@@ -75,7 +79,7 @@ func init() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func logPrintln(v ...interface{}) {
-	if (nil != logger) {
+	if nil != logger {
 		logger.Println(v...)
 	}
 	fmt.Println(v...)
@@ -95,7 +99,7 @@ func jsonEcho(code int, msg interface{}, w http.ResponseWriter) {
 
 func pushStream(video, pushurl, courseid string) (err error) {
 	cmd, in, _ := newCmd()
-	cndStr := FFMPEG + " -re -i " + video + " -c:v copy -b:v " + bitrate + " -f flv " + pushurl
+	cndStr := fmt.Sprintf(cmdStrf, video, "", pushurl)
 	in.WriteString(cndStr)
 	logPrintln(cndStr)
 	err = cmd.Run()
@@ -108,13 +112,13 @@ func newCmd() (cmd *exec.Cmd, in *bytes.Buffer, out *bytes.Buffer) {
 	cmd = exec.Command("sh")
 	cmd.Stdin = in
 	cmd.Stderr = out
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid:true}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	return
 }
 
 func newPushCmd(video, pushurl, courseid string) (pCmd *pushCmd) {
 	cmd, in, out := newCmd()
-	cndStr := FFMPEG + " -re -i " + video + " -c:v copy -b:v " + bitrate + " -f flv " + pushurl
+	cndStr := fmt.Sprintf(cmdStrf, video, "", pushurl)
 	in.WriteString(cndStr)
 	logPrintln(cndStr)
 	pCmd = &pushCmd{cmd, false, out}
@@ -144,7 +148,7 @@ func sign(params map[string]string, key string) string {
 
 func HttpGet(url string, params map[string]string) {
 	httpreq := httplib.Get(url)
-	if (nil == httpreq) {
+	if nil == httpreq {
 		return
 	}
 	//set params
@@ -154,7 +158,7 @@ func HttpGet(url string, params map[string]string) {
 	httpreq.Header("Accept", "application/json")
 	httpreq.Header("Authentication", Sign(params))
 	_, err := httpreq.Response()
-	if (nil != err) {
+	if nil != err {
 		logPrintln(err)
 	}
 }
@@ -168,22 +172,22 @@ func LoopHandler(w http.ResponseWriter, r *http.Request) {
 	var pushurl string = "rtmp://pili-publish.dreamtest.strongwind.cn/DreamtestLive2016/livetest?key=0d281f93-c8ec-4e0f-a573-15680052443f"
 
 	r.ParseForm()
-	if (len(r.Form["op"]) > 0) {
+	if len(r.Form["op"]) > 0 {
 		op = r.Form["op"][0]
 	}
 
-	if (len(r.Form["video"]) > 0) {
+	if len(r.Form["video"]) > 0 {
 		video = r.Form["video"][0]
 	}
 
-	if (len(r.Form["pushurl"]) > 0) {
+	if len(r.Form["pushurl"]) > 0 {
 		pushurl = r.Form["pushurl"][0]
 	}
 
-	if (!loop&&op == "open") {
+	if !loop && op == "open" {
 		loop = true
 		go func() {
-			for ; loop; {
+			for loop {
 				logPrintln("push")
 				err := pushStream(video, pushurl, "")
 				if err != nil {
@@ -197,7 +201,7 @@ func LoopHandler(w http.ResponseWriter, r *http.Request) {
 		jsonEcho(0, "open loop", w)
 		return
 
-	}else if op == "close" {
+	} else if op == "close" {
 		loop = false
 		jsonEcho(0, "close loop", w)
 		return
@@ -216,15 +220,13 @@ func LoopHandler(w http.ResponseWriter, r *http.Request) {
 // @Param   callback1        form   string    true      "回调函数"
 // @Param   courseid        form   string    true      "唯一标识"
 func PushStream(w http.ResponseWriter, r *http.Request) {
-
 	logPrintln("PushStream--------------------")
-
 	r.ParseForm()
-	if (len(r.Form["videourl"]) <= 0 ||
+	if len(r.Form["videourl"]) <= 0 ||
 	len(r.Form["pushurl"]) <= 0 ||
 	len(r.Form["courseid"]) <= 0 ||
 	len(r.Form["callback"]) <= 0 ||
-	pushReg.FindString(r.Form["pushurl"][0]) == "") {
+	pushReg.FindString(r.Form["pushurl"][0]) == "" {
 		jsonEcho(PARARMERR, "param error", w)
 		return
 	}
@@ -237,7 +239,7 @@ func PushStream(w http.ResponseWriter, r *http.Request) {
 	logPrintln(video, pushurl, courseid, callback)
 
 	_, ok := pushMap[courseid]
-	if (ok) {
+	if ok {
 		jsonEcho(-2, "another stream already exist", w)
 		return
 	}
@@ -249,7 +251,7 @@ func PushStream(w http.ResponseWriter, r *http.Request) {
 		err := cmd.CmdExec.Run()
 		if err != nil {
 			logPrintln(err.Error() + " " + cmd.ErrorString())
-			if (nil != cmd&&!cmd.Flag) {
+			if nil != cmd && !cmd.Flag {
 				code = "-1"
 			}
 		}
@@ -262,13 +264,13 @@ func PushStream(w http.ResponseWriter, r *http.Request) {
 		param["courseid"] = courseid
 		param["code"] = code
 
-		if ("" != callback1) {
+		if "" != callback1 {
 			HttpGet(callback1, param)
-		}else {
+		} else {
 			HttpGet(callbackServer, param)
 		}
 
-		if ("" != callback) {
+		if "" != callback {
 			HttpGet(callback, param)
 		}
 	}()
@@ -279,7 +281,7 @@ func PushStream(w http.ResponseWriter, r *http.Request) {
 //
 func Callback(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	if (len(r.Form["code"]) > 0) {
+	if len(r.Form["code"]) > 0 {
 		logPrintln("push code:", string(r.Form["code"][0]))
 	}
 	logPrintln("push")
@@ -295,7 +297,7 @@ func Callback(w http.ResponseWriter, r *http.Request) {
 // @Param   rate         form   string    true      "唯一标识"
 func SetBitRate(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	if (len(r.Form["rate"]) > 0) {
+	if len(r.Form["rate"]) > 0 {
 		rate := bitReg.FindString(r.Form["rate"][0])
 		if "" != rate {
 			bitrate = rate
@@ -313,13 +315,13 @@ func SetBitRate(w http.ResponseWriter, r *http.Request) {
 // @Param   courseid         form   string    true      "回调地址"
 func KillPush(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	if (len(r.Form["courseid"]) <= 0) {
+	if len(r.Form["courseid"]) <= 0 {
 		jsonEcho(PARARMERR, "param error", w)
 		return
 	}
 	courseid := strings.TrimSpace(r.Form["courseid"][0])
 	cmd, ok := pushMap[courseid]
-	if (ok) {
+	if ok {
 		cmd.Flag = true
 		cmd.Kill()
 	}
@@ -332,12 +334,50 @@ func KillPush(w http.ResponseWriter, r *http.Request) {
 // @Param   callbackServer         form   string    true      "回调地址"
 func SetCallbackServer(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	if (len(r.Form["callbackServer"]) <= 0) {
+	if len(r.Form["callbackServer"]) <= 0 {
 		jsonEcho(PARARMERR, "param error", w)
 		return
 	}
 	callbackServer = r.Form["callbackServer"][0]
 	jsonEcho(0, "Set callbackServer success", w)
+	return
+}
+
+
+// @Title GetVideoInfo
+// @Description 获取视频的基本信息
+// @Param   videourl         form   string    true      "视频信息"
+func GetVideoInfo(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	if len(r.Form["videourl"]) <= 0 || r.Form["videourl"][0] == "" {
+		jsonEcho(PARARMERR, "param error", w)
+		return
+	}
+	videourl := r.Form["videourl"][0]
+	vOpt := make(map[string]string)
+	cmd, in, out := newCmd()
+	cndStr := fmt.Sprintf(cmdInfoStrf, videourl)
+	in.WriteString(cndStr)
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("GetVideoInfo:" + err.Error())
+	}
+	str := out.String()
+	options := avOptions.FindAllString(str, -1)
+	if len(options) == 2 {
+		vo := strings.Split(options[0], ",")
+		ao := strings.Split(options[1], ",")
+		vOpt["V_code"] = vo[0]
+		vOpt["V_res"] = vo[2]
+		vOpt["V_bitrate"] = vo[3]
+		vOpt["V_fps"] = vo[4]
+
+		vOpt["A_code"] = ao[0]
+		vOpt["A_samplerate"] = ao[1]
+		vOpt["A_bitrate"] = ao[4]
+
+	}
+	jsonEcho(0, vOpt, w)
 	return
 }
 
@@ -350,7 +390,7 @@ func main() {
 	http.HandleFunc("/callback", Callback)
 	http.HandleFunc("/setrate", SetBitRate)
 	http.HandleFunc("/setCallbackServer", SetCallbackServer)
+	http.HandleFunc("/videoInfo", GetVideoInfo)
 	logPrintln("ListenAndServe:8888")
 	http.ListenAndServe(":8888", nil)
 }
-
